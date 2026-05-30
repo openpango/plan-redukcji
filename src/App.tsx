@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Activity, CalendarDays, Dumbbell, Footprints, HeartPulse, Scale, ShieldAlert, Utensils, Droplets, Moon, CheckCircle2, Clock, Pill, ListTodo, BookOpen, ChevronDown } from "lucide-react"
+import { Activity, CalendarDays, Dumbbell, Footprints, HeartPulse, Scale, ShieldAlert, Utensils, Droplets, Moon, CheckCircle2, Clock, Pill, ListTodo, BookOpen, ChevronDown, LogIn, LogOut, UserCircle } from "lucide-react"
+import { type Session } from "@supabase/supabase-js"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
@@ -320,6 +321,9 @@ export default function PlanRedukcjiDoWrzesnia() {
   const [dailyLog, setDailyLog] = useState<DailyLog>(createDefaultDailyLog())
   const [monthData, setMonthData] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(true)
+  const [session, setSession] = useState<Session | null>(null)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [authError, setAuthError] = useState("")
 
   const [planStartDate, setPlanStartDate] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -334,12 +338,42 @@ export default function PlanRedukcjiDoWrzesnia() {
     }
   }, [planStartDate])
 
+  useEffect(() => {
+    let active = true
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return
+      setSession(data.session)
+      setIsAuthLoading(false)
+    })
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      setIsAuthLoading(false)
+      if (!nextSession) {
+        setDailyLog(createDefaultDailyLog())
+        setMonthData({})
+      }
+    })
+
+    return () => {
+      active = false
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
+
   // Fetch all recent data for the calendar strip
   useEffect(() => {
+    if (!session?.user.id) {
+      setMonthData({})
+      return
+    }
+
     const fetchMonthData = async () => {
       const { data } = await supabase
         .from('daily_logs')
         .select('date, data')
+        .eq('user_id', session.user.id)
         .order('date', { ascending: false })
         .limit(30)
       
@@ -356,21 +390,28 @@ export default function PlanRedukcjiDoWrzesnia() {
       }
     }
     fetchMonthData()
-  }, [])
+  }, [session?.user.id])
 
   // Fetch selected day from Supabase
   useEffect(() => {
+    if (!session?.user.id) {
+      setDailyLog(createDefaultDailyLog())
+      setIsLoading(false)
+      return
+    }
+
     let active = true
     const fetchLog = async () => {
       setIsLoading(true)
       const { data, error } = await supabase
         .from('daily_logs')
         .select('data')
+        .eq('user_id', session.user.id)
         .eq('date', selectedDate)
-        .single()
+        .maybeSingle()
       
       if (active) {
-        if (data && data.data) {
+        if (!error && data?.data) {
           setDailyLog({
             ...createDefaultDailyLog(),
             ...data.data,
@@ -387,16 +428,19 @@ export default function PlanRedukcjiDoWrzesnia() {
     }
     fetchLog()
     return () => { active = false }
-  }, [selectedDate])
+  }, [selectedDate, session?.user.id])
 
   // Save to Supabase (debounced)
   useEffect(() => {
-    if (isLoading) return
+    if (isLoading || !session?.user.id) return
     
     const handler = setTimeout(async () => {
       await supabase
         .from('daily_logs')
-        .upsert({ date: selectedDate, data: dailyLog })
+        .upsert(
+          { user_id: session.user.id, date: selectedDate, data: dailyLog },
+          { onConflict: 'user_id,date' }
+        )
       
       // Update local month summary immediately so the calendar dot updates
       setMonthData(prev => ({
@@ -406,7 +450,7 @@ export default function PlanRedukcjiDoWrzesnia() {
     }, 1000)
 
     return () => clearTimeout(handler)
-  }, [selectedDate, dailyLog, isLoading])
+  }, [selectedDate, dailyLog, isLoading, session?.user.id])
 
   const completion = useMemo(() => Math.round((checked.length / checklist.length) * 100), [checked])
   const dailyCompletion = useMemo(() => calculateCompletion(dailyLog), [dailyLog])
@@ -437,6 +481,28 @@ export default function PlanRedukcjiDoWrzesnia() {
     setDailyLog(createDefaultDailyLog())
   }
 
+  const signInWithGoogle = async () => {
+    setAuthError("")
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    })
+
+    if (error) {
+      setAuthError(error.message)
+    }
+  }
+
+  const signOut = async () => {
+    setAuthError("")
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      setAuthError(error.message)
+    }
+  }
+
   const toggle = (item: string) => {
     setChecked((current) =>
       current.includes(item) ? current.filter((x) => x !== item) : [...current, item]
@@ -445,16 +511,20 @@ export default function PlanRedukcjiDoWrzesnia() {
 
   // --- RENDER FUNCTIONS FOR EACH TAB ---
 
-  const renderDziennik = () => (
-    <motion.div
-      key="dziennik"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
-    >
-      <motion.header
+  const renderDziennik = () => {
+    const userEmail = session?.user.email
+    const userName = session?.user.user_metadata?.full_name || userEmail || "Zalogowany"
+
+    return (
+      <motion.div
+        key="dziennik"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className="space-y-6"
+      >
+        <motion.header
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -469,14 +539,53 @@ export default function PlanRedukcjiDoWrzesnia() {
             </p>
           </div>
           <div className="rounded-3xl bg-white/10 p-5 backdrop-blur">
-            <div className="text-sm text-zinc-300">Najważniejsza zasada</div>
-            <div className="mt-2 text-2xl font-bold">Rygor, nie głodówka</div>
-            <p className="mt-3 text-sm leading-6 text-zinc-300">
-              Ozempic zmniejsza apetyt. Priorytet to białko, woda, sen i trening oporowy.
-            </p>
+            {session ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <UserCircle size={28} />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm text-zinc-300">{userEmail}</div>
+                    <div className="truncate text-xl font-bold">{userName}</div>
+                  </div>
+                </div>
+                <Button variant="ghost" onClick={signOut} className="mt-4 w-full rounded-2xl bg-white text-zinc-950 hover:bg-zinc-200">
+                  <LogOut size={16} className="mr-2" />
+                  Wyloguj
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="text-sm text-zinc-300">Konto</div>
+                <div className="mt-2 text-2xl font-bold">Zapis per użytkownik</div>
+                <p className="mt-3 text-sm leading-6 text-zinc-300">
+                  Zaloguj się przez Google, żeby dziennik zapisywał się w chmurze tylko dla Ciebie.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </motion.header>
+
+      {!session && (
+        <Card className="rounded-3xl border-0 shadow-md">
+          <CardContent className="p-6">
+            <SectionTitle icon={UserCircle} title="Logowanie" subtitle="Dziennik w chmurze wymaga konta Google." />
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <p className="max-w-2xl text-sm leading-6 text-zinc-600">
+                Każdy użytkownik ma własne wpisy, a baza danych pilnuje dostępu przez Row Level Security.
+              </p>
+              <Button onClick={signInWithGoogle} disabled={isAuthLoading} className="rounded-2xl">
+                <LogIn size={16} className="mr-2" />
+                {isAuthLoading ? "Sprawdzam sesję..." : "Zaloguj przez Google"}
+              </Button>
+            </div>
+            {authError && <p className="mt-3 text-sm font-medium text-red-600">{authError}</p>}
+          </CardContent>
+        </Card>
+      )}
+
+      {session && (
+        <>
 
       {/* Date Strip Calendar */}
       <DateStrip selectedDate={selectedDate} onSelect={changeDate} monthData={monthData} startDate={planStartDate} />
@@ -608,8 +717,11 @@ export default function PlanRedukcjiDoWrzesnia() {
           </motion.div>
         ))}
       </div>
+        </>
+      )}
     </motion.div>
-  )
+    )
+  }
 
   const renderPlan = () => (
     <motion.div

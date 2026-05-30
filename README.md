@@ -37,7 +37,21 @@ Agresywny plan redukcji bez siłowni – hantle, kroki, bieganie, dieta i pełna
    npm install
    ```
 
-3. **Uruchom serwer deweloperski:**
+3. **Skonfiguruj Bazę Danych (Supabase):**
+   Utwórz plik `.env.local` w głównym katalogu projektu i wklej swoje klucze z projektu Supabase:
+   ```env
+   VITE_SUPABASE_URL=twoj_url_projektu
+   VITE_SUPABASE_ANON_KEY=twoj_anon_public_key
+   ```
+   W Supabase w SQL Editor uruchom również ten kod, by stworzyć tabelę:
+   ```sql
+   create table daily_logs (
+     date date primary key,
+     data jsonb not null
+   );
+   ```
+
+4. **Uruchom serwer deweloperski:**
    ```bash
    npm run dev
    ```

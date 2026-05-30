@@ -3,6 +3,7 @@ import { motion } from "framer-motion"
 import { Activity, CalendarDays, Dumbbell, Footprints, HeartPulse, Scale, ShieldAlert, Utensils, Droplets, Moon, CheckCircle2, Clock, Pill } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
 
 const goals = [
   { label: "Start", value: "90 kg", icon: Scale },
@@ -201,35 +202,54 @@ function SectionTitle({ icon: Icon, title, subtitle }: { icon: any; title: strin
 export default function PlanRedukcjiDoWrzesnia() {
   const getToday = () => new Date().toISOString().slice(0, 10)
 
-  const loadDailyLog = (date: string): DailyLog => {
-    if (typeof window === "undefined") return createDefaultDailyLog()
-
-    const saved = window.localStorage.getItem(`reduction-log-${date}`)
-    if (!saved) return createDefaultDailyLog()
-
-    try {
-      const parsed = JSON.parse(saved)
-      return {
-        ...createDefaultDailyLog(),
-        ...parsed,
-        checks: {
-          ...createDefaultDailyLog().checks,
-          ...(parsed.checks || {})
-        }
-      }
-    } catch {
-      return createDefaultDailyLog()
-    }
-  }
-
   const [checked, setChecked] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState(getToday)
-  const [dailyLog, setDailyLog] = useState<DailyLog>(() => loadDailyLog(getToday()))
+  const [dailyLog, setDailyLog] = useState<DailyLog>(createDefaultDailyLog())
+  const [isLoading, setIsLoading] = useState(true)
 
+  // Fetch from Supabase
   useEffect(() => {
-    if (typeof window === "undefined") return
-    window.localStorage.setItem(`reduction-log-${selectedDate}`, JSON.stringify(dailyLog))
-  }, [selectedDate, dailyLog])
+    let active = true
+    const fetchLog = async () => {
+      setIsLoading(true)
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .select('data')
+        .eq('date', selectedDate)
+        .single()
+      
+      if (active) {
+        if (data && data.data) {
+          setDailyLog({
+            ...createDefaultDailyLog(),
+            ...data.data,
+            checks: {
+              ...createDefaultDailyLog().checks,
+              ...(data.data.checks || {})
+            }
+          })
+        } else {
+          setDailyLog(createDefaultDailyLog())
+        }
+        setIsLoading(false)
+      }
+    }
+    fetchLog()
+    return () => { active = false }
+  }, [selectedDate])
+
+  // Save to Supabase (debounced)
+  useEffect(() => {
+    if (isLoading) return
+    
+    const handler = setTimeout(async () => {
+      await supabase
+        .from('daily_logs')
+        .upsert({ date: selectedDate, data: dailyLog })
+    }, 1000)
+
+    return () => clearTimeout(handler)
+  }, [selectedDate, dailyLog, isLoading])
 
   const completion = useMemo(() => Math.round((checked.length / checklist.length) * 100), [checked])
 
@@ -246,7 +266,6 @@ export default function PlanRedukcjiDoWrzesnia() {
 
   const changeDate = (date: string) => {
     setSelectedDate(date)
-    setDailyLog(loadDailyLog(date))
   }
 
   const toggleDailyCheck = (item: string) => {

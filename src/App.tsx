@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react"
+import React, { useMemo, useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Activity, CalendarDays, Dumbbell, Footprints, HeartPulse, Scale, ShieldAlert, Utensils, Droplets, Moon, CheckCircle2, Clock, Pill, ListTodo, BookOpen } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -102,6 +102,13 @@ const createDefaultDailyLog = (): DailyLog => ({
   notes: "",
   checks: trackerChecks.reduce((acc, item) => ({ ...acc, [item]: false }), {} as Record<string, boolean>)
 })
+
+const calculateCompletion = (log: DailyLog) => {
+  const checkedPoints = Object.values(log.checks || {}).filter(Boolean).length
+  const filledMetrics = [log.wakeTime, log.sleepTime, log.weight, log.kcal, log.protein, log.steps].filter(Boolean).length
+  const waterPoint = log.waterGlasses >= 11 ? 1 : 0
+  return Math.round(((checkedPoints + filledMetrics + waterPoint) / (trackerChecks.length + 7)) * 100)
+}
 
 function MetricInput({ label, value, type = "text", suffix, placeholder, onChange }: { label: string; value: string; type?: string; suffix?: string; placeholder?: string; onChange: (value: string) => void }) {
   return (
@@ -213,6 +220,74 @@ function NavButton({ active, onClick, icon: Icon, label }: { active: boolean, on
   )
 }
 
+function DateStrip({ selectedDate, onSelect, monthData }: { selectedDate: string, onSelect: (d: string) => void, monthData: Record<string, number> }) {
+  const dates = useMemo(() => {
+    const list = []
+    const today = new Date()
+    for (let i = -14; i <= 7; i++) {
+      const d = new Date(today)
+      d.setDate(today.getDate() + i)
+      list.push(d.toISOString().slice(0, 10))
+    }
+    return list
+  }, [])
+
+  const daysOfWeek = ["Niedz", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"]
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    if (containerRef.current) {
+      const selectedEl = containerRef.current.querySelector('[data-selected="true"]')
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+      }
+    }
+  }, [selectedDate])
+
+  return (
+    <div className="flex w-full overflow-x-auto pb-4 pt-2 [&::-webkit-scrollbar]:hidden" ref={containerRef} style={{ scrollbarWidth: 'none' }}>
+      <div className="flex gap-3 px-2">
+        {dates.map((dateStr) => {
+          const dateObj = new Date(dateStr)
+          const dayName = daysOfWeek[dateObj.getDay()]
+          const dayNum = dateObj.getDate()
+          const isSelected = dateStr === selectedDate
+          const completion = monthData[dateStr] || 0
+          
+          let ringClass = "border-transparent"
+          if (completion > 80) ringClass = "border-emerald-500"
+          else if (completion > 40) ringClass = "border-amber-400"
+          else if (completion > 0) ringClass = "border-zinc-300"
+          else if (dateStr < new Date().toISOString().slice(0, 10)) ringClass = "border-zinc-200/60"
+
+          return (
+            <button
+              key={dateStr}
+              data-selected={isSelected}
+              onClick={() => onSelect(dateStr)}
+              className={`flex shrink-0 flex-col items-center justify-center rounded-2xl border-2 px-4 py-3 transition-all ${
+                isSelected 
+                  ? "bg-zinc-900 text-white shadow-lg border-zinc-900 scale-105" 
+                  : `bg-white text-zinc-600 hover:bg-zinc-50 ${ringClass}`
+              }`}
+            >
+              <span className={`text-xs font-medium uppercase tracking-wider ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                {dayName}
+              </span>
+              <span className={`mt-1 text-xl font-bold ${isSelected ? 'text-white' : 'text-zinc-900'}`}>
+                {dayNum}
+              </span>
+              <div className="mt-2 h-1.5 w-1.5 rounded-full" 
+                   style={{ backgroundColor: completion > 80 ? '#10b981' : completion > 40 ? '#fbbf24' : completion > 0 ? '#d4d4d8' : 'transparent' }} 
+              />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 type TabType = 'dziennik' | 'plan' | 'wiedza'
 
 export default function PlanRedukcjiDoWrzesnia() {
@@ -222,9 +297,34 @@ export default function PlanRedukcjiDoWrzesnia() {
   const [checked, setChecked] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState(getToday)
   const [dailyLog, setDailyLog] = useState<DailyLog>(createDefaultDailyLog())
+  const [monthData, setMonthData] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch from Supabase
+  // Fetch all recent data for the calendar strip
+  useEffect(() => {
+    const fetchMonthData = async () => {
+      const { data } = await supabase
+        .from('daily_logs')
+        .select('date, data')
+        .order('date', { ascending: false })
+        .limit(30)
+      
+      if (data) {
+        const summary: Record<string, number> = {}
+        data.forEach((row: any) => {
+          summary[row.date] = calculateCompletion({
+            ...createDefaultDailyLog(),
+            ...row.data,
+            checks: { ...createDefaultDailyLog().checks, ...(row.data.checks || {}) }
+          })
+        })
+        setMonthData(summary)
+      }
+    }
+    fetchMonthData()
+  }, [])
+
+  // Fetch selected day from Supabase
   useEffect(() => {
     let active = true
     const fetchLog = async () => {
@@ -263,19 +363,19 @@ export default function PlanRedukcjiDoWrzesnia() {
       await supabase
         .from('daily_logs')
         .upsert({ date: selectedDate, data: dailyLog })
+      
+      // Update local month summary immediately so the calendar dot updates
+      setMonthData(prev => ({
+        ...prev,
+        [selectedDate]: calculateCompletion(dailyLog)
+      }))
     }, 1000)
 
     return () => clearTimeout(handler)
   }, [selectedDate, dailyLog, isLoading])
 
   const completion = useMemo(() => Math.round((checked.length / checklist.length) * 100), [checked])
-
-  const dailyCompletion = useMemo(() => {
-    const checkedPoints = Object.values(dailyLog.checks).filter(Boolean).length
-    const filledMetrics = [dailyLog.wakeTime, dailyLog.sleepTime, dailyLog.weight, dailyLog.kcal, dailyLog.protein, dailyLog.steps].filter(Boolean).length
-    const waterPoint = dailyLog.waterGlasses >= 11 ? 1 : 0
-    return Math.round(((checkedPoints + filledMetrics + waterPoint) / (trackerChecks.length + 7)) * 100)
-  }, [dailyLog])
+  const dailyCompletion = useMemo(() => calculateCompletion(dailyLog), [dailyLog])
 
   const updateDailyLog = (field: keyof DailyLog, value: string | number) => {
     setDailyLog((current) => ({ ...current, [field]: value }))
@@ -344,19 +444,14 @@ export default function PlanRedukcjiDoWrzesnia() {
         </div>
       </motion.header>
 
-      <Card className="rounded-3xl border-0 shadow-md">
+      {/* Date Strip Calendar */}
+      <DateStrip selectedDate={selectedDate} onSelect={changeDate} monthData={monthData} />
+
+      <Card className="rounded-3xl border-0 shadow-md mt-2">
         <CardContent className="p-6">
           <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <SectionTitle icon={ListTodo} title="Dziennik dnia" subtitle="Automatyczny zapis w chmurze." />
-            <label className="rounded-2xl bg-zinc-100 p-4">
-              <span className="text-sm font-medium text-zinc-600">Data</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(event) => changeDate(event.target.value)}
-                className="mt-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
-              />
-            </label>
+            {/* Native date input removed in favor of DateStrip */}
           </div>
 
           <div className="mb-5">

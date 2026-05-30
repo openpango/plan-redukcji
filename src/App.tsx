@@ -224,7 +224,8 @@ function DateStrip({ selectedDate, onSelect, monthData }: { selectedDate: string
   const dates = useMemo(() => {
     const list = []
     const today = new Date()
-    for (let i = -14; i <= 7; i++) {
+    // Generujemy 30 dni wstecz i 120 dni do przodu (cały okres aż do września/października)
+    for (let i = -30; i <= 120; i++) {
       const d = new Date(today)
       d.setDate(today.getDate() + i)
       list.push(d.toISOString().slice(0, 10))

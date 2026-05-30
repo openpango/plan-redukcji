@@ -223,11 +223,11 @@ function NavButton({ active, onClick, icon: Icon, label }: { active: boolean, on
 function DateStrip({ selectedDate, onSelect, monthData }: { selectedDate: string, onSelect: (d: string) => void, monthData: Record<string, number> }) {
   const dates = useMemo(() => {
     const list = []
-    const today = new Date()
-    // Generujemy 30 dni wstecz i 120 dni do przodu (cały okres aż do września/października)
-    for (let i = -30; i <= 120; i++) {
-      const d = new Date(today)
-      d.setDate(today.getDate() + i)
+    const startDate = new Date("2026-05-30")
+    // Generujemy dni od 30.05.2026 aż do końca września (123 dni)
+    for (let i = 0; i <= 123; i++) {
+      const d = new Date(startDate)
+      d.setDate(startDate.getDate() + i)
       list.push(d.toISOString().slice(0, 10))
     }
     return list

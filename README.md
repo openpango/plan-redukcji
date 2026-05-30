@@ -1,16 +1,61 @@
-# React + Vite
+# 🏋️‍♂️ Plan Redukcji - Twój Osobisty Asystent Treningu i Diety
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
+![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
-Currently, two official plugins are available:
+Agresywny plan redukcji bez siłowni – hantle, kroki, bieganie, dieta i pełna kontrola tygodniowa. Zbudowany z myślą o prostocie, regularności i skuteczności, ten projekt to interaktywny dziennik wspierający Twoje cele sylwetkowe do września!
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ✨ Główne Funkcje
 
-## React Compiler
+- **📝 Interaktywny Dziennik Dnia**: Zapisuj sen, wagę, kalorie, białko, kroki oraz wypitą wodę. Stan dziennika jest na bieżąco analizowany.
+- **🎯 Dynamiczny Pasek Postępu**: Śledź swój stopień realizacji założonego planu w ciągu dnia (wypełnienie dziennika oraz realizacja checklisty).
+- **💪 Baza Wiedzy Treningowej i Dietetycznej**: 
+  - Rozpisane treningi na górę i dół ciała (Trening A, Trening B).
+  - Szablon godzinowy dnia i suplementacja.
+  - Najważniejsze zasady, by przetrwać na rygorystycznym planie (nawodnienie, kaloryka, białko).
+- **💾 Zapis Lokalny (Local Storage)**: Twoje wyniki nie giną po odświeżeniu aplikacji. Dziennik używa wbudowanej pamięci przeglądarki, by pamiętać wpisy dla poszczególnych dni.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Stack Technologiczny
 
-## Expanding the ESLint configuration
+- **[React 18](https://react.dev/)** – Interfejs użytkownika
+- **[Vite](https://vitejs.dev/)** – Ultraszybki bundler i serwer deweloperski
+- **[Tailwind CSS v4](https://tailwindcss.com/)** – Szybkie i piękne stylowanie komponentów
+- **[Framer Motion](https://www.framer.com/motion/)** – Płynne animacje i przejścia
+- **[Lucide React](https://lucide.dev/)** – Zestaw nowoczesnych, minimalistycznych ikon
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🚀 Jak uruchomić projekt lokalnie
+
+1. **Sklonuj repozytorium:**
+   ```bash
+   git clone https://github.com/openpango/plan-redukcji.git
+   cd plan-redukcji
+   ```
+
+2. **Zainstaluj zależności:**
+   ```bash
+   npm install
+   ```
+
+3. **Uruchom serwer deweloperski:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Otwórz w przeglądarce:**
+   Wejdź pod podany adres (domyślnie `http://localhost:5173`), by zobaczyć aplikację w akcji.
+
+## 🌍 Hosting za darmo
+
+Ten projekt jest gotowy do darmowego i automatycznego wdrożenia, w takich platformach jak:
+
+- **[Vercel](https://vercel.com/)** (Polecane) - wystarczy połączyć z kontem GitHub i zaimportować to repozytorium. Konfiguracja Vite zostanie wykryta automatycznie.
+- **[Netlify](https://www.netlify.com/)** - przeciągnij i upuść folder, lub połącz bezpośrednio z GitHubem.
+- **[GitHub Pages](https://pages.github.com/)**
+
+Ustawienia dla platform:
+- **Build Command:** `npm run build`
+- **Output Directory:** `dist`
+
+---
+*Niech moc będzie z Tobą! Cel do września czeka.*

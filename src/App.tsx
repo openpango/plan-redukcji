@@ -88,6 +88,30 @@ type DailyLog = {
   checks: Record<string, boolean>
 }
 
+type UserProfile = {
+  id?: string
+  user_id: string
+  display_name: string
+  height_cm: number
+  start_weight_kg: number
+  goal_weight_kg: number
+  target_date: string
+  uses_medication: boolean
+  has_injury_or_condition: boolean
+  safety_notes: string
+}
+
+type ProfileFormState = {
+  display_name: string
+  height_cm: string
+  start_weight_kg: string
+  goal_weight_kg: string
+  target_date: string
+  uses_medication: boolean
+  has_injury_or_condition: boolean
+  safety_notes: string
+}
+
 const createDefaultDailyLog = (): DailyLog => ({
   wakeTime: "",
   sleepTime: "",
@@ -102,6 +126,28 @@ const createDefaultDailyLog = (): DailyLog => ({
   mood: "",
   notes: "",
   checks: trackerChecks.reduce((acc, item) => ({ ...acc, [item]: false }), {} as Record<string, boolean>)
+})
+
+const createEmptyProfileForm = (fallbackName = ""): ProfileFormState => ({
+  display_name: fallbackName,
+  height_cm: "",
+  start_weight_kg: "",
+  goal_weight_kg: "",
+  target_date: "2026-09-01",
+  uses_medication: false,
+  has_injury_or_condition: false,
+  safety_notes: ""
+})
+
+const profileToForm = (profile: UserProfile): ProfileFormState => ({
+  display_name: profile.display_name,
+  height_cm: String(profile.height_cm),
+  start_weight_kg: String(profile.start_weight_kg),
+  goal_weight_kg: String(profile.goal_weight_kg),
+  target_date: profile.target_date,
+  uses_medication: profile.uses_medication,
+  has_injury_or_condition: profile.has_injury_or_condition,
+  safety_notes: profile.safety_notes || ""
 })
 
 const calculateCompletion = (log: DailyLog) => {
@@ -310,7 +356,7 @@ function DateStrip({ selectedDate, onSelect, monthData, startDate }: { selectedD
   )
 }
 
-type TabType = 'dziennik' | 'plan' | 'wiedza'
+type TabType = 'dziennik' | 'plan' | 'wiedza' | 'profil'
 
 export default function PlanRedukcjiDoWrzesnia() {
   const getToday = () => new Date().toISOString().slice(0, 10)
@@ -324,6 +370,12 @@ export default function PlanRedukcjiDoWrzesnia() {
   const [session, setSession] = useState<Session | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [authError, setAuthError] = useState("")
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [profileForm, setProfileForm] = useState<ProfileFormState>(createEmptyProfileForm())
+  const [isProfileLoading, setIsProfileLoading] = useState(false)
+  const [isProfileSaving, setIsProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState("")
+  const [profileSavedMessage, setProfileSavedMessage] = useState("")
 
   const [planStartDate, setPlanStartDate] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -353,6 +405,11 @@ export default function PlanRedukcjiDoWrzesnia() {
       if (!nextSession) {
         setDailyLog(createDefaultDailyLog())
         setMonthData({})
+        setProfile(null)
+        setProfileForm(createEmptyProfileForm())
+        setProfileError("")
+        setProfileSavedMessage("")
+        setActiveTab('dziennik')
       }
     })
 
@@ -362,9 +419,54 @@ export default function PlanRedukcjiDoWrzesnia() {
     }
   }, [])
 
-  // Fetch all recent data for the calendar strip
   useEffect(() => {
     if (!session?.user.id) {
+      setProfile(null)
+      setIsProfileLoading(false)
+      return
+    }
+
+    let active = true
+    const fallbackName = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || ""
+
+    const fetchProfile = async () => {
+      setIsProfileLoading(true)
+      setProfileError("")
+
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+
+      if (!active) return
+
+      if (error) {
+        setProfileError(`Nie udało się pobrać profilu: ${error.message}`)
+        setProfile(null)
+        setProfileForm(createEmptyProfileForm(fallbackName))
+      } else if (data) {
+        const nextProfile = data as UserProfile
+        setProfile(nextProfile)
+        setProfileForm(profileToForm(nextProfile))
+      } else {
+        setProfile(null)
+        setProfileForm(createEmptyProfileForm(fallbackName))
+      }
+
+      setIsProfileLoading(false)
+    }
+
+    fetchProfile()
+
+    return () => {
+      active = false
+    }
+  }, [session?.user.id])
+
+  // Fetch all recent data for the calendar strip
+  useEffect(() => {
+    if (!session?.user.id || !profile) {
       setMonthData({})
       return
     }
@@ -390,11 +492,11 @@ export default function PlanRedukcjiDoWrzesnia() {
       }
     }
     fetchMonthData()
-  }, [session?.user.id])
+  }, [session?.user.id, profile])
 
   // Fetch selected day from Supabase
   useEffect(() => {
-    if (!session?.user.id) {
+    if (!session?.user.id || !profile) {
       setDailyLog(createDefaultDailyLog())
       setIsLoading(false)
       return
@@ -428,11 +530,11 @@ export default function PlanRedukcjiDoWrzesnia() {
     }
     fetchLog()
     return () => { active = false }
-  }, [selectedDate, session?.user.id])
+  }, [selectedDate, session?.user.id, profile])
 
   // Save to Supabase (debounced)
   useEffect(() => {
-    if (isLoading || !session?.user.id) return
+    if (isLoading || !session?.user.id || !profile) return
     
     const handler = setTimeout(async () => {
       await supabase
@@ -450,7 +552,7 @@ export default function PlanRedukcjiDoWrzesnia() {
     }, 1000)
 
     return () => clearTimeout(handler)
-  }, [selectedDate, dailyLog, isLoading, session?.user.id])
+  }, [selectedDate, dailyLog, isLoading, session?.user.id, profile])
 
   const completion = useMemo(() => Math.round((checked.length / checklist.length) * 100), [checked])
   const dailyCompletion = useMemo(() => calculateCompletion(dailyLog), [dailyLog])
@@ -503,6 +605,71 @@ export default function PlanRedukcjiDoWrzesnia() {
     }
   }
 
+  const updateProfileForm = (field: keyof ProfileFormState, value: string | boolean) => {
+    setProfileError("")
+    setProfileSavedMessage("")
+    setProfileForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const validateProfileForm = () => {
+    const displayName = profileForm.display_name.trim()
+    const height = Number(profileForm.height_cm)
+    const startWeight = Number(profileForm.start_weight_kg)
+    const goalWeight = Number(profileForm.goal_weight_kg)
+    const targetDate = profileForm.target_date
+
+    if (!displayName) return "Podaj imię lub nazwę profilu."
+    if (!targetDate || Number.isNaN(new Date(targetDate).getTime())) return "Wybierz prawidłową datę celu."
+    if (!Number.isFinite(height) || height <= 0) return "Podaj prawidłowy wzrost w cm."
+    if (!Number.isFinite(startWeight) || startWeight <= 0) return "Podaj prawidłową wagę startową."
+    if (!Number.isFinite(goalWeight) || goalWeight <= 0) return "Podaj prawidłową wagę docelową."
+    return ""
+  }
+
+  const saveProfile = async () => {
+    if (!session?.user.id) return
+
+    const validationError = validateProfileForm()
+    if (validationError) {
+      setProfileError(validationError)
+      return
+    }
+
+    setIsProfileSaving(true)
+    setProfileError("")
+    setProfileSavedMessage("")
+
+    const payload = {
+      user_id: session.user.id,
+      display_name: profileForm.display_name.trim(),
+      height_cm: Number(profileForm.height_cm),
+      start_weight_kg: Number(profileForm.start_weight_kg),
+      goal_weight_kg: Number(profileForm.goal_weight_kg),
+      target_date: profileForm.target_date,
+      uses_medication: profileForm.uses_medication,
+      has_injury_or_condition: profileForm.has_injury_or_condition,
+      safety_notes: profileForm.safety_notes.trim()
+    }
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .upsert(payload, { onConflict: 'user_id' })
+      .select('*')
+      .single()
+
+    if (error) {
+      setProfileError(`Nie udało się zapisać profilu: ${error.message}`)
+    } else if (data) {
+      const nextProfile = data as UserProfile
+      setProfile(nextProfile)
+      setProfileForm(profileToForm(nextProfile))
+      setProfileSavedMessage("Profil zapisany.")
+      setActiveTab('dziennik')
+    }
+
+    setIsProfileSaving(false)
+  }
+
   const toggle = (item: string) => {
     setChecked((current) =>
       current.includes(item) ? current.filter((x) => x !== item) : [...current, item]
@@ -511,9 +678,136 @@ export default function PlanRedukcjiDoWrzesnia() {
 
   // --- RENDER FUNCTIONS FOR EACH TAB ---
 
+  const renderProfileForm = (mode: 'intro' | 'edit') => {
+    const isIntro = mode === 'intro'
+
+    return (
+      <motion.div
+        key={mode}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className={isIntro ? "mx-auto flex min-h-[calc(100vh-7rem)] max-w-3xl items-center" : "space-y-6"}
+      >
+        <Card className="w-full rounded-3xl border-0 shadow-xl">
+          <CardContent className="p-6 md:p-8">
+            <SectionTitle
+              icon={UserCircle}
+              title={isIntro ? "Ustaw swój plan" : "Profil"}
+              subtitle={isIntro ? "Ten krok jest wymagany przed wejściem do dziennika." : "Zmień dane z intro, gdy zmieni się cel albo sytuacja."}
+            />
+
+            <form
+              className="space-y-5"
+              onSubmit={(event) => {
+                event.preventDefault()
+                saveProfile()
+              }}
+            >
+              <div className="grid gap-3 md:grid-cols-2">
+                <MetricInput
+                  label="Imię lub nazwa profilu"
+                  value={profileForm.display_name}
+                  placeholder="np. Nico"
+                  onChange={(value) => updateProfileForm("display_name", value)}
+                />
+                <MetricInput
+                  label="Wzrost"
+                  type="number"
+                  suffix="cm"
+                  placeholder="187"
+                  value={profileForm.height_cm}
+                  onChange={(value) => updateProfileForm("height_cm", value)}
+                />
+                <MetricInput
+                  label="Waga startowa"
+                  type="number"
+                  suffix="kg"
+                  placeholder="90"
+                  value={profileForm.start_weight_kg}
+                  onChange={(value) => updateProfileForm("start_weight_kg", value)}
+                />
+                <MetricInput
+                  label="Waga docelowa"
+                  type="number"
+                  suffix="kg"
+                  placeholder="82"
+                  value={profileForm.goal_weight_kg}
+                  onChange={(value) => updateProfileForm("goal_weight_kg", value)}
+                />
+                <MetricInput
+                  label="Data celu"
+                  type="date"
+                  value={profileForm.target_date}
+                  onChange={(value) => updateProfileForm("target_date", value)}
+                />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="flex items-start gap-3 rounded-2xl bg-zinc-100 p-4">
+                  <input
+                    type="checkbox"
+                    checked={profileForm.uses_medication}
+                    onChange={(event) => updateProfileForm("uses_medication", event.target.checked)}
+                    className="mt-1 h-4 w-4 accent-zinc-900"
+                  />
+                  <span>
+                    <span className="block font-semibold text-zinc-900">Leki wpływające na dietę lub trening</span>
+                    <span className="mt-1 block text-sm leading-6 text-zinc-600">Opcjonalna flaga bezpieczeństwa do przyszłego dopasowania planu.</span>
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-2xl bg-zinc-100 p-4">
+                  <input
+                    type="checkbox"
+                    checked={profileForm.has_injury_or_condition}
+                    onChange={(event) => updateProfileForm("has_injury_or_condition", event.target.checked)}
+                    className="mt-1 h-4 w-4 accent-zinc-900"
+                  />
+                  <span>
+                    <span className="block font-semibold text-zinc-900">Kontuzja albo ograniczenie zdrowotne</span>
+                    <span className="mt-1 block text-sm leading-6 text-zinc-600">Zaznacz, jeśli plan powinien później brać to pod uwagę.</span>
+                  </span>
+                </label>
+              </div>
+
+              <label className="block rounded-2xl bg-zinc-100 p-4">
+                <span className="text-sm font-medium text-zinc-600">Notatki bezpieczeństwa</span>
+                <textarea
+                  value={profileForm.safety_notes}
+                  placeholder="np. kolano, plecy, leki, preferencje, ograniczenia czasowe"
+                  onChange={(event) => updateProfileForm("safety_notes", event.target.value)}
+                  className="mt-2 min-h-[110px] w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-medium outline-none transition focus:border-zinc-900"
+                />
+              </label>
+
+              <div className="rounded-2xl bg-zinc-950 p-4 text-sm leading-6 text-zinc-300">
+                To nie jest diagnoza medyczna. Dane zapisujemy po to, żeby później lepiej dopasować plan i zachować ostrożność przy ograniczeniach.
+              </div>
+
+              {profileError && <p className="text-sm font-medium text-red-600">{profileError}</p>}
+              {profileSavedMessage && !isIntro && <p className="text-sm font-medium text-emerald-700">{profileSavedMessage}</p>}
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-zinc-500">
+                  {isIntro ? "Bez tego kroku dziennik i plan pozostają zablokowane." : "Zmiany zapiszą się w Twoim profilu użytkownika."}
+                </p>
+                <Button type="submit" disabled={isProfileSaving} className="rounded-2xl">
+                  <CheckCircle2 size={16} className="mr-2" />
+                  {isProfileSaving ? "Zapisuję..." : isIntro ? "Zapisz i przejdź dalej" : "Zapisz profil"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
+    )
+  }
+
   const renderDziennik = () => {
     const userEmail = session?.user.email
-    const userName = session?.user.user_metadata?.full_name || userEmail || "Zalogowany"
+    const userName = profile?.display_name || session?.user.user_metadata?.full_name || userEmail || "Zalogowany"
 
     return (
       <motion.div
@@ -971,23 +1265,44 @@ export default function PlanRedukcjiDoWrzesnia() {
     </motion.div>
   )
 
+  const shouldShowProfileGate = Boolean(session && !isProfileLoading && !profile)
+  const shouldShowMainNav = Boolean(session && profile)
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-200 text-zinc-950 pb-28">
       <div className="mx-auto max-w-6xl p-4 md:p-8">
         <AnimatePresence mode="wait">
-          {activeTab === 'dziennik' && renderDziennik()}
-          {activeTab === 'plan' && renderPlan()}
-          {activeTab === 'wiedza' && renderZasady()}
+          {shouldShowProfileGate && renderProfileForm('intro')}
+          {session && isProfileLoading && (
+            <motion.div
+              key="profile-loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex min-h-[calc(100vh-7rem)] items-center justify-center"
+            >
+              <div className="rounded-3xl bg-white px-6 py-5 text-sm font-semibold text-zinc-700 shadow-md">
+                Sprawdzam profil...
+              </div>
+            </motion.div>
+          )}
+          {!shouldShowProfileGate && !isProfileLoading && activeTab === 'dziennik' && renderDziennik()}
+          {!shouldShowProfileGate && !isProfileLoading && profile && activeTab === 'plan' && renderPlan()}
+          {!shouldShowProfileGate && !isProfileLoading && profile && activeTab === 'wiedza' && renderZasady()}
+          {!shouldShowProfileGate && !isProfileLoading && profile && activeTab === 'profil' && renderProfileForm('edit')}
         </AnimatePresence>
       </div>
 
+      {shouldShowMainNav && (
       <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 px-4 pointer-events-none">
         <div className="pointer-events-auto flex gap-2 rounded-3xl bg-white/70 p-2 backdrop-blur-xl shadow-lg border border-white/50">
           <NavButton active={activeTab === 'dziennik'} onClick={() => setActiveTab('dziennik')} icon={ListTodo} label="Dziennik" />
           <NavButton active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={Dumbbell} label="Trening & Dieta" />
           <NavButton active={activeTab === 'wiedza'} onClick={() => setActiveTab('wiedza')} icon={BookOpen} label="Baza Wiedzy" />
+          <NavButton active={activeTab === 'profil'} onClick={() => setActiveTab('profil')} icon={UserCircle} label="Profil" />
         </div>
       </div>
+      )}
     </div>
   )
 }

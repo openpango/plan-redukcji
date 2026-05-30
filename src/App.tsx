@@ -212,15 +212,15 @@ function ProgressBar({ value }: { value: number }) {
   )
 }
 
-function SectionTitle({ icon: Icon, title, subtitle }: { icon: any; title: string; subtitle?: string }) {
+function SectionTitle({ icon: Icon, title, subtitle, darkTheme }: { icon: any; title: string; subtitle?: string; darkTheme?: boolean }) {
   return (
     <div className="mb-4 flex items-start gap-3">
-      <div className="rounded-2xl bg-zinc-900 p-2 text-white">
+      <div className={`rounded-2xl p-2 ${darkTheme ? "bg-white text-zinc-900" : "bg-zinc-900 text-white"}`}>
         <Icon size={20} />
       </div>
       <div>
-        <h2 className="text-xl font-semibold tracking-tight text-zinc-950">{title}</h2>
-        {subtitle && <p className="text-sm text-zinc-600">{subtitle}</p>}
+        <h2 className={`text-xl font-semibold tracking-tight ${darkTheme ? "text-white" : "text-zinc-950"}`}>{title}</h2>
+        {subtitle && <p className={`text-sm ${darkTheme ? "text-zinc-400" : "text-zinc-600"}`}>{subtitle}</p>}
       </div>
     </div>
   )
@@ -847,7 +847,7 @@ export default function PlanRedukcjiDoWrzesnia() {
 
         <Card className="rounded-3xl border-0 bg-zinc-950 text-white shadow-md">
           <CardContent className="p-6">
-            <SectionTitle icon={HeartPulse} title="Ozempic i bezpieczeństwo" subtitle="Trzymaj redukcję ostro, ale rozsądnie." />
+            <SectionTitle icon={HeartPulse} title="Ozempic i bezpieczeństwo" subtitle="Trzymaj redukcję ostro, ale rozsądnie." darkTheme />
             <div className="space-y-3 text-zinc-300">
               <p className="leading-7">Nie zmieniaj dawki samodzielnie. Nie łącz głodówki, sauny, folii i mocnego cardio.</p>
               <p className="leading-7">Pilny kontakt z lekarzem: silny ból brzucha, uporczywe wymioty, omdlenia, mało moczu, mocne odwodnienie, ból brzucha promieniujący do pleców.</p>

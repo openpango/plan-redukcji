@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Activity, CalendarDays, Dumbbell, Footprints, HeartPulse, Scale, ShieldAlert, Utensils, Droplets, Moon, CheckCircle2, Clock, Pill } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Activity, CalendarDays, Dumbbell, Footprints, HeartPulse, Scale, ShieldAlert, Utensils, Droplets, Moon, CheckCircle2, Clock, Pill, ListTodo, BookOpen } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
@@ -199,9 +199,26 @@ function SectionTitle({ icon: Icon, title, subtitle }: { icon: any; title: strin
   )
 }
 
+function NavButton({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-300 ${
+        active ? "bg-zinc-900 text-white shadow-md scale-105" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+      }`}
+    >
+      <Icon size={18} />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  )
+}
+
+type TabType = 'dziennik' | 'plan' | 'wiedza'
+
 export default function PlanRedukcjiDoWrzesnia() {
   const getToday = () => new Date().toISOString().slice(0, 10)
 
+  const [activeTab, setActiveTab] = useState<TabType>('dziennik')
   const [checked, setChecked] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState(getToday)
   const [dailyLog, setDailyLog] = useState<DailyLog>(createDefaultDailyLog())
@@ -292,384 +309,431 @@ export default function PlanRedukcjiDoWrzesnia() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-200 p-4 text-zinc-950 md:p-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <motion.header
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="overflow-hidden rounded-3xl bg-zinc-950 p-6 text-white shadow-xl md:p-8"
-        >
-          <div className="grid gap-6 md:grid-cols-[1.4fr_0.6fr] md:items-end">
-            <div>
-              <p className="mb-3 text-sm font-medium uppercase tracking-[0.25em] text-zinc-400">Plan redukcji</p>
-              <h1 className="text-4xl font-bold tracking-tight md:text-6xl">Brzuch do września</h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300 md:text-lg">
-                Agresywny plan bez siłowni. Hantle, kroki, bieganie, dieta i kontrola tygodniowa. Cel to utrata tłuszczu, nie odwodnienie.
-              </p>
-            </div>
-            <div className="rounded-3xl bg-white/10 p-5 backdrop-blur">
-              <div className="text-sm text-zinc-300">Najważniejsza zasada</div>
-              <div className="mt-2 text-2xl font-bold">Rygor, nie głodówka</div>
-              <p className="mt-3 text-sm leading-6 text-zinc-300">
-                Ozempic zmniejsza apetyt. Priorytet to białko, woda, sen i trening oporowy.
-              </p>
-            </div>
+  // --- RENDER FUNCTIONS FOR EACH TAB ---
+
+  const renderDziennik = () => (
+    <motion.div
+      key="dziennik"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      <motion.header
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="overflow-hidden rounded-3xl bg-zinc-950 p-6 text-white shadow-xl md:p-8"
+      >
+        <div className="grid gap-6 md:grid-cols-[1.4fr_0.6fr] md:items-end">
+          <div>
+            <p className="mb-3 text-sm font-medium uppercase tracking-[0.25em] text-zinc-400">Plan redukcji</p>
+            <h1 className="text-4xl font-bold tracking-tight md:text-6xl">Brzuch do września</h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300 md:text-lg">
+              Twój dziennik. Trzymaj dyscyplinę, kontroluj miskę i postępy!
+            </p>
           </div>
-        </motion.header>
+          <div className="rounded-3xl bg-white/10 p-5 backdrop-blur">
+            <div className="text-sm text-zinc-300">Najważniejsza zasada</div>
+            <div className="mt-2 text-2xl font-bold">Rygor, nie głodówka</div>
+            <p className="mt-3 text-sm leading-6 text-zinc-300">
+              Ozempic zmniejsza apetyt. Priorytet to białko, woda, sen i trening oporowy.
+            </p>
+          </div>
+        </div>
+      </motion.header>
+
+      <Card className="rounded-3xl border-0 shadow-md">
+        <CardContent className="p-6">
+          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <SectionTitle icon={ListTodo} title="Dziennik dnia" subtitle="Automatyczny zapis w chmurze." />
+            <label className="rounded-2xl bg-zinc-100 p-4">
+              <span className="text-sm font-medium text-zinc-600">Data</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(event) => changeDate(event.target.value)}
+                className="mt-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
+              />
+            </label>
+          </div>
+
+          <div className="mb-5">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span>Wypełnienie dziennika</span>
+              <span className="font-semibold">{dailyCompletion}%</span>
+            </div>
+            <ProgressBar value={dailyCompletion} />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-4">
+            <MetricInput label="O której wstałem" type="time" value={dailyLog.wakeTime} onChange={(value) => updateDailyLog("wakeTime", value)} />
+            <MetricInput label="O której idę spać" type="time" value={dailyLog.sleepTime} onChange={(value) => updateDailyLog("sleepTime", value)} />
+            <MetricInput label="Waga rano" type="number" suffix="kg" placeholder="90.0" value={dailyLog.weight} onChange={(value) => updateDailyLog("weight", value)} />
+            <MetricInput label="Pas" type="number" suffix="cm" placeholder="np. 96" value={dailyLog.waist} onChange={(value) => updateDailyLog("waist", value)} />
+            <MetricInput label="Kalorie" type="number" suffix="kcal" placeholder="1800" value={dailyLog.kcal} onChange={(value) => updateDailyLog("kcal", value)} />
+            <MetricInput label="Białko" type="number" suffix="g" placeholder="180" value={dailyLog.protein} onChange={(value) => updateDailyLog("protein", value)} />
+            <MetricInput label="Kroki" type="number" suffix="kroków" placeholder="12000" value={dailyLog.steps} onChange={(value) => updateDailyLog("steps", value)} />
+            <label className="block rounded-2xl bg-zinc-100 p-4">
+              <span className="text-sm font-medium text-zinc-600">Woda</span>
+              <div className="mt-2 flex items-center gap-2">
+                <Button variant="ghost" className="rounded-xl bg-white px-3" onClick={() => setWaterGlasses(dailyLog.waterGlasses - 1)}>-</Button>
+                <div className="flex-1 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-center text-base font-bold">{dailyLog.waterGlasses} szkl.</div>
+                <Button variant="ghost" className="rounded-xl bg-white px-3" onClick={() => setWaterGlasses(dailyLog.waterGlasses + 1)}>+</Button>
+              </div>
+              <p className="mt-2 text-xs text-zinc-500">Cel bazowy: 11 szklanek.</p>
+            </label>
+          </div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <label className="block rounded-2xl bg-zinc-100 p-4">
+              <span className="text-sm font-medium text-zinc-600">Trening hantlami</span>
+              <select
+                value={dailyLog.workout}
+                onChange={(event) => updateDailyLog("workout", event.target.value)}
+                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
+              >
+                <option value="">Nie wybrano</option>
+                <option value="A">Trening A</option>
+                <option value="B">Trening B</option>
+                <option value="odpoczynek">Odpoczynek</option>
+              </select>
+            </label>
+            <label className="block rounded-2xl bg-zinc-100 p-4">
+              <span className="text-sm font-medium text-zinc-600">Bieg albo spacer</span>
+              <input
+                value={dailyLog.run}
+                placeholder="np. bieg 6 km albo spacer 60 min"
+                onChange={(event) => updateDailyLog("run", event.target.value)}
+                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
+              />
+            </label>
+            <label className="block rounded-2xl bg-zinc-100 p-4">
+              <span className="text-sm font-medium text-zinc-600">Samopoczucie</span>
+              <select
+                value={dailyLog.mood}
+                onChange={(event) => updateDailyLog("mood", event.target.value)}
+                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
+              >
+                <option value="">Nie wybrano</option>
+                <option value="super">Super</option>
+                <option value="ok">OK</option>
+                <option value="slabo">Słabo</option>
+                <option value="nudnosci">Nudności</option>
+                <option value="brak energii">Brak energii</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-2 md:grid-cols-4">
+            {trackerChecks.map((item) => {
+              const active = dailyLog.checks[item]
+              return (
+                <Button
+                  key={item}
+                  variant="ghost"
+                  onClick={() => toggleDailyCheck(item)}
+                  className={`h-auto justify-start rounded-2xl p-3 text-left text-sm ${active ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white" : "bg-zinc-100 hover:bg-zinc-200"}`}
+                >
+                  <CheckCircle2 size={16} className="mr-2 shrink-0" />
+                  {item}
+                </Button>
+              )
+            })}
+          </div>
+
+          <label className="mt-4 block rounded-2xl bg-zinc-100 p-4">
+            <span className="text-sm font-medium text-zinc-600">Notatki</span>
+            <textarea
+              value={dailyLog.notes}
+              placeholder="np. głód 3/10, nudności po obiedzie, dobry trening, mało snu"
+              onChange={(event) => updateDailyLog("notes", event.target.value)}
+              className="mt-2 min-h-[110px] w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-medium outline-none transition focus:border-zinc-900"
+            />
+          </label>
+
+          <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-zinc-950 p-4 text-white md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="font-semibold">Szybki odczyt dnia</div>
+              <p className="mt-1 text-sm text-zinc-300">{dailyLog.weight || "brak wagi"} kg, {dailyLog.kcal || "brak kcal"} kcal, {dailyLog.protein || "brak białka"} g białka, {dailyLog.waterGlasses} szklanek wody.</p>
+            </div>
+            <Button variant="ghost" onClick={resetDailyLog} className="rounded-2xl bg-white text-zinc-950 hover:bg-zinc-200">Wyczyść dzień</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        {goals.map(({ label, value, icon: Icon }, index) => (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.06 }}
+          >
+            <Card className="rounded-3xl border-0 shadow-md h-full">
+              <CardContent className="p-5 flex flex-col justify-between h-full">
+                <Icon className="mb-4 text-zinc-700" size={24} />
+                <div>
+                  <div className="text-sm text-zinc-500">{label}</div>
+                  <div className="mt-1 text-2xl font-bold text-zinc-950">{value}</div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    </motion.div>
+  )
+
+  const renderPlan = () => (
+    <motion.div
+      key="plan"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+        <Card className="rounded-3xl border-0 shadow-md">
+          <CardContent className="p-6">
+            <SectionTitle icon={CalendarDays} title="Tydzień treningowy" subtitle="4 treningi hantlami, 2 biegi, dużo kroków." />
+            <div className="space-y-3">
+              {week.map((item) => (
+                <div key={item.day} className="grid grid-cols-[110px_1fr] gap-3 rounded-2xl bg-zinc-100 p-4 md:grid-cols-[140px_1fr_1fr]">
+                  <div className="font-semibold">{item.day}</div>
+                  <div>{item.main}</div>
+                  <div className="text-sm text-zinc-600">{item.extra}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="rounded-3xl border-0 shadow-md">
           <CardContent className="p-6">
-            <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <SectionTitle icon={CheckCircle2} title="Dziennik dnia" subtitle="Zapisuje się automatycznie na tym urządzeniu. Wybierz datę i wpisuj rzeczy na bieżąco." />
-              <label className="rounded-2xl bg-zinc-100 p-4">
-                <span className="text-sm font-medium text-zinc-600">Data</span>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(event) => changeDate(event.target.value)}
-                  className="mt-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
-                />
-              </label>
-            </div>
-
-            <div className="mb-5">
+            <SectionTitle icon={CheckCircle2} title="Checklist na dziś" subtitle="Sprawdź swoje cele codzienne." />
+            <div className="mb-4">
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span>Wypełnienie dziennika</span>
-                <span className="font-semibold">{dailyCompletion}%</span>
+                <span>Wykonanie dnia</span>
+                <span className="font-semibold">{completion}%</span>
               </div>
-              <ProgressBar value={dailyCompletion} />
+              <ProgressBar value={completion} />
             </div>
-
-            <div className="grid gap-3 md:grid-cols-4">
-              <MetricInput label="O której wstałem" type="time" value={dailyLog.wakeTime} onChange={(value) => updateDailyLog("wakeTime", value)} />
-              <MetricInput label="O której idę spać" type="time" value={dailyLog.sleepTime} onChange={(value) => updateDailyLog("sleepTime", value)} />
-              <MetricInput label="Waga rano" type="number" suffix="kg" placeholder="90.0" value={dailyLog.weight} onChange={(value) => updateDailyLog("weight", value)} />
-              <MetricInput label="Pas" type="number" suffix="cm" placeholder="np. 96" value={dailyLog.waist} onChange={(value) => updateDailyLog("waist", value)} />
-              <MetricInput label="Kalorie" type="number" suffix="kcal" placeholder="1800" value={dailyLog.kcal} onChange={(value) => updateDailyLog("kcal", value)} />
-              <MetricInput label="Białko" type="number" suffix="g" placeholder="180" value={dailyLog.protein} onChange={(value) => updateDailyLog("protein", value)} />
-              <MetricInput label="Kroki" type="number" suffix="kroków" placeholder="12000" value={dailyLog.steps} onChange={(value) => updateDailyLog("steps", value)} />
-              <label className="block rounded-2xl bg-zinc-100 p-4">
-                <span className="text-sm font-medium text-zinc-600">Woda</span>
-                <div className="mt-2 flex items-center gap-2">
-                  <Button variant="ghost" className="rounded-xl bg-white px-3" onClick={() => setWaterGlasses(dailyLog.waterGlasses - 1)}>-</Button>
-                  <div className="flex-1 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-center text-base font-bold">{dailyLog.waterGlasses} szkl.</div>
-                  <Button variant="ghost" className="rounded-xl bg-white px-3" onClick={() => setWaterGlasses(dailyLog.waterGlasses + 1)}>+</Button>
-                </div>
-                <p className="mt-2 text-xs text-zinc-500">Cel bazowy: 11 szklanek.</p>
-              </label>
-            </div>
-
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <label className="block rounded-2xl bg-zinc-100 p-4">
-                <span className="text-sm font-medium text-zinc-600">Trening hantlami</span>
-                <select
-                  value={dailyLog.workout}
-                  onChange={(event) => updateDailyLog("workout", event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
-                >
-                  <option value="">Nie wybrano</option>
-                  <option value="A">Trening A</option>
-                  <option value="B">Trening B</option>
-                  <option value="odpoczynek">Odpoczynek</option>
-                </select>
-              </label>
-
-              <label className="block rounded-2xl bg-zinc-100 p-4">
-                <span className="text-sm font-medium text-zinc-600">Bieg albo spacer</span>
-                <input
-                  value={dailyLog.run}
-                  placeholder="np. bieg 6 km albo spacer 60 min"
-                  onChange={(event) => updateDailyLog("run", event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
-                />
-              </label>
-
-              <label className="block rounded-2xl bg-zinc-100 p-4">
-                <span className="text-sm font-medium text-zinc-600">Samopoczucie</span>
-                <select
-                  value={dailyLog.mood}
-                  onChange={(event) => updateDailyLog("mood", event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
-                >
-                  <option value="">Nie wybrano</option>
-                  <option value="super">Super</option>
-                  <option value="ok">OK</option>
-                  <option value="slabo">Słabo</option>
-                  <option value="nudnosci">Nudności</option>
-                  <option value="brak energii">Brak energii</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="mt-4 grid gap-2 md:grid-cols-4">
-              {trackerChecks.map((item) => {
-                const active = dailyLog.checks[item]
+            <div className="space-y-2">
+              {checklist.map((item) => {
+                const active = checked.includes(item)
                 return (
                   <Button
                     key={item}
                     variant="ghost"
-                    onClick={() => toggleDailyCheck(item)}
-                    className={`h-auto justify-start rounded-2xl p-3 text-left text-sm ${active ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white" : "bg-zinc-100 hover:bg-zinc-200"}`}
+                    onClick={() => toggle(item)}
+                    className={`h-auto w-full justify-start rounded-2xl p-4 text-left ${active ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white" : "bg-zinc-100 hover:bg-zinc-200"}`}
                   >
-                    <CheckCircle2 size={16} className="mr-2 shrink-0" />
+                    <CheckCircle2 size={18} className="mr-3 shrink-0" />
                     {item}
                   </Button>
                 )
               })}
             </div>
+          </CardContent>
+        </Card>
+      </div>
 
-            <label className="mt-4 block rounded-2xl bg-zinc-100 p-4">
-              <span className="text-sm font-medium text-zinc-600">Notatki</span>
-              <textarea
-                value={dailyLog.notes}
-                placeholder="np. głód 3/10, nudności po obiedzie, dobry trening, mało snu"
-                onChange={(event) => updateDailyLog("notes", event.target.value)}
-                className="mt-2 min-h-[110px] w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-medium outline-none transition focus:border-zinc-900"
-              />
-            </label>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="rounded-3xl border-0 shadow-md">
+          <CardContent className="p-6">
+            <SectionTitle icon={Dumbbell} title="Trening A" subtitle="Rób z zapasem 1-2 powtórzeń." />
+            <ol className="space-y-3">
+              {workoutA.map((item, index) => (
+                <li key={item} className="flex gap-3 rounded-2xl bg-zinc-100 p-4">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-bold text-white">{index + 1}</span>
+                  <span className="leading-7">{item}</span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
 
-            <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-zinc-950 p-4 text-white md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="font-semibold">Szybki odczyt dnia</div>
-                <p className="mt-1 text-sm text-zinc-300">{dailyLog.weight || "brak wagi"} kg, {dailyLog.kcal || "brak kcal"} kcal, {dailyLog.protein || "brak białka"} g białka, {dailyLog.waterGlasses} szklanek wody.</p>
+        <Card className="rounded-3xl border-0 shadow-md">
+          <CardContent className="p-6">
+            <SectionTitle icon={Dumbbell} title="Trening B" subtitle="Nogi jednostronnie, pompki i dużo wiosłowania." />
+            <ol className="space-y-3">
+              {workoutB.map((item, index) => (
+                <li key={item} className="flex gap-3 rounded-2xl bg-zinc-100 p-4">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-bold text-white">{index + 1}</span>
+                  <span className="leading-7">{item}</span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="rounded-3xl border-0 shadow-md">
+        <CardContent className="p-6">
+          <SectionTitle icon={Utensils} title="Prosty jadłospis" subtitle="Powtarzalność wygrywa z kombinowaniem." />
+          <div className="grid gap-3 md:grid-cols-2">
+            {meals.map((meal) => (
+              <div key={meal.name} className="rounded-2xl bg-zinc-100 p-5">
+                <div className="text-sm font-semibold uppercase tracking-wide text-zinc-500">{meal.name}</div>
+                <p className="mt-2 text-lg font-medium leading-7">{meal.text}</p>
               </div>
-              <Button variant="ghost" onClick={resetDailyLog} className="rounded-2xl bg-white text-zinc-950 hover:bg-zinc-200">Wyczyść dzień</Button>
+            ))}
+          </div>
+          <div className="mt-5 rounded-2xl bg-zinc-950 p-5 text-white">
+            <div className="text-lg font-bold">Reguła progresu</div>
+            <p className="mt-2 leading-7 text-zinc-300">
+              Gdy zrobisz górny zakres we wszystkich seriach, zwiększ ciężar. Gdy hantle są za lekkie, zwolnij ruch, dodaj pauzę albo przejdź na ćwiczenia jednonóż.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+
+  const renderZasady = () => (
+    <motion.div
+      key="wiedza"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <Card className="rounded-3xl border-0 shadow-md">
+          <CardContent className="p-6">
+            <SectionTitle icon={Clock} title="Godziny dnia" subtitle="Domyślny rytm. Przesuń całość, jeśli wstajesz później albo wcześniej." />
+            <div className="space-y-3">
+              {daySchedule.map((item) => (
+                <div key={item.time} className="grid grid-cols-[72px_1fr] gap-3 rounded-2xl bg-zinc-100 p-4">
+                  <div className="font-mono text-sm font-bold text-zinc-700">{item.time}</div>
+                  <div>
+                    <div className="font-semibold">{item.title}</div>
+                    <p className="mt-1 text-sm leading-6 text-zinc-600">{item.text}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          {goals.map(({ label, value, icon: Icon }, index) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.06 }}
-            >
-              <Card className="rounded-3xl border-0 shadow-md">
-                <CardContent className="p-5">
-                  <Icon className="mb-4 text-zinc-700" size={24} />
-                  <div className="text-sm text-zinc-500">{label}</div>
-                  <div className="mt-1 text-2xl font-bold text-zinc-950">{value}</div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={Clock} title="Godziny dnia" subtitle="Domyślny rytm. Przesuń całość, jeśli wstajesz później albo wcześniej." />
-              <div className="space-y-3">
-                {daySchedule.map((item) => (
-                  <div key={item.time} className="grid grid-cols-[72px_1fr] gap-3 rounded-2xl bg-zinc-100 p-4">
-                    <div className="font-mono text-sm font-bold text-zinc-700">{item.time}</div>
-                    <div>
-                      <div className="font-semibold">{item.title}</div>
-                      <p className="mt-1 text-sm leading-6 text-zinc-600">{item.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={Pill} title="Suplementy i timing" subtitle="Nie zastępują kalorii, białka, kroków ani snu." />
-              <div className="space-y-3">
-                {supplements.map((item) => (
-                  <div key={item.name} className="rounded-2xl bg-zinc-100 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-lg font-bold">{item.name}</div>
-                      <div className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">{item.dose}</div>
-                    </div>
-                    <div className="mt-2 text-sm font-medium text-zinc-700">{item.when}</div>
-                    <p className="mt-1 text-sm leading-6 text-zinc-600">{item.note}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 rounded-2xl bg-zinc-950 p-4 text-white">
-                <div className="font-semibold">Zasady godzin</div>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-300">
-                  {timingRules.map((rule) => <li key={rule}>• {rule}</li>)}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         <Card className="rounded-3xl border-0 shadow-md">
           <CardContent className="p-6">
-            <SectionTitle icon={Droplets} title="Woda w szklankach" subtitle="1 szklanka = 250 ml. Cel bazowy: 11 szklanek dziennie." />
-            <div className="grid gap-3 md:grid-cols-5">
-              {hydrationPlan.map((item) => (
-                <div key={item.time} className="rounded-2xl bg-zinc-100 p-4">
-                  <div className="font-mono text-sm font-bold text-zinc-700">{item.time}</div>
-                  <div className="mt-2 text-lg font-bold">{item.amount}</div>
-                  <p className="mt-1 text-sm leading-6 text-zinc-600">{item.text}</p>
+            <SectionTitle icon={Pill} title="Suplementy i timing" subtitle="Nie zastępują kalorii, białka, kroków ani snu." />
+            <div className="space-y-3">
+              {supplements.map((item) => (
+                <div key={item.name} className="rounded-2xl bg-zinc-100 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-lg font-bold">{item.name}</div>
+                    <div className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">{item.dose}</div>
+                  </div>
+                  <div className="mt-2 text-sm font-medium text-zinc-700">{item.when}</div>
+                  <p className="mt-1 text-sm leading-6 text-zinc-600">{item.note}</p>
                 </div>
               ))}
             </div>
             <div className="mt-4 rounded-2xl bg-zinc-950 p-4 text-white">
-              <div className="font-semibold">Zasady nawodnienia</div>
-              <ul className="mt-3 grid gap-2 text-sm leading-6 text-zinc-300 md:grid-cols-2">
-                {waterRules.map((rule) => <li key={rule}>• {rule}</li>)}
+              <div className="font-semibold">Zasady godzin</div>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-300">
+                {timingRules.map((rule) => <li key={rule}>• {rule}</li>)}
               </ul>
             </div>
           </CardContent>
         </Card>
+      </div>
 
-        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={Utensils} title="Codzienne zasady" subtitle="Trzymasz je codziennie, także w weekend." />
-              <div className="grid gap-3 sm:grid-cols-2">
-                {dailyRules.map(({ title, value, detail, icon: Icon }) => (
-                  <div key={title} className="rounded-2xl bg-zinc-100 p-4">
-                    <div className="flex items-center gap-2">
-                      <Icon size={18} className="text-zinc-700" />
-                      <span className="text-sm font-medium text-zinc-600">{title}</span>
-                    </div>
-                    <div className="mt-2 text-xl font-bold">{value}</div>
-                    <p className="mt-1 text-sm leading-6 text-zinc-600">{detail}</p>
-                  </div>
-                ))}
+      <Card className="rounded-3xl border-0 shadow-md">
+        <CardContent className="p-6">
+          <SectionTitle icon={Droplets} title="Woda w szklankach" subtitle="1 szklanka = 250 ml. Cel bazowy: 11 szklanek dziennie." />
+          <div className="grid gap-3 md:grid-cols-5">
+            {hydrationPlan.map((item) => (
+              <div key={item.time} className="rounded-2xl bg-zinc-100 p-4">
+                <div className="font-mono text-sm font-bold text-zinc-700">{item.time}</div>
+                <div className="mt-2 text-lg font-bold">{item.amount}</div>
+                <p className="mt-1 text-sm leading-6 text-zinc-600">{item.text}</p>
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
+          <div className="mt-4 rounded-2xl bg-zinc-950 p-4 text-white">
+            <div className="font-semibold">Zasady nawodnienia</div>
+            <ul className="mt-3 grid gap-2 text-sm leading-6 text-zinc-300 md:grid-cols-2">
+              {waterRules.map((rule) => <li key={rule}>• {rule}</li>)}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
 
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={CalendarDays} title="Tydzień treningowy" subtitle="4 treningi hantlami, 2 biegi, dużo kroków." />
-              <div className="space-y-3">
-                {week.map((item) => (
-                  <div key={item.day} className="grid grid-cols-[110px_1fr] gap-3 rounded-2xl bg-zinc-100 p-4 md:grid-cols-[140px_1fr_1fr]">
-                    <div className="font-semibold">{item.day}</div>
-                    <div>{item.main}</div>
-                    <div className="text-sm text-zinc-600">{item.extra}</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={Dumbbell} title="Trening A" subtitle="Rób z zapasem 1-2 powtórzeń." />
-              <ol className="space-y-3">
-                {workoutA.map((item, index) => (
-                  <li key={item} className="flex gap-3 rounded-2xl bg-zinc-100 p-4">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-bold text-white">{index + 1}</span>
-                    <span className="leading-7">{item}</span>
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={Dumbbell} title="Trening B" subtitle="Nogi jednostronnie, pompki i dużo wiosłowania." />
-              <ol className="space-y-3">
-                {workoutB.map((item, index) => (
-                  <li key={item} className="flex gap-3 rounded-2xl bg-zinc-100 p-4">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-bold text-white">{index + 1}</span>
-                    <span className="leading-7">{item}</span>
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={Utensils} title="Prosty jadłospis" subtitle="Powtarzalność wygrywa z kombinowaniem." />
-              <div className="grid gap-3 md:grid-cols-2">
-                {meals.map((meal) => (
-                  <div key={meal.name} className="rounded-2xl bg-zinc-100 p-5">
-                    <div className="text-sm font-semibold uppercase tracking-wide text-zinc-500">{meal.name}</div>
-                    <p className="mt-2 text-lg font-medium leading-7">{meal.text}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 rounded-2xl bg-zinc-950 p-5 text-white">
-                <div className="text-lg font-bold">Reguła progresu</div>
-                <p className="mt-2 leading-7 text-zinc-300">
-                  Gdy zrobisz górny zakres we wszystkich seriach, zwiększ ciężar. Gdy hantle są za lekkie, zwolnij ruch, dodaj pauzę albo przejdź na ćwiczenia jednonóż.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={CheckCircle2} title="Checklist na dziś" subtitle="Odklikuj wykonane punkty." />
-              <div className="mb-4">
-                <div className="mb-2 flex items-center justify-between text-sm">
-                  <span>Wykonanie dnia</span>
-                  <span className="font-semibold">{completion}%</span>
+      <Card className="rounded-3xl border-0 shadow-md">
+        <CardContent className="p-6">
+          <SectionTitle icon={Utensils} title="Codzienne zasady" subtitle="Trzymasz je codziennie, także w weekend." />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {dailyRules.map(({ title, value, detail, icon: Icon }) => (
+              <div key={title} className="rounded-2xl bg-zinc-100 p-4">
+                <div className="flex items-center gap-2">
+                  <Icon size={18} className="text-zinc-700" />
+                  <span className="text-sm font-medium text-zinc-600">{title}</span>
                 </div>
-                <ProgressBar value={completion} />
+                <div className="mt-2 text-xl font-bold">{value}</div>
+                <p className="mt-1 text-sm leading-6 text-zinc-600">{detail}</p>
               </div>
-              <div className="space-y-2">
-                {checklist.map((item) => {
-                  const active = checked.includes(item)
-                  return (
-                    <Button
-                      key={item}
-                      variant="ghost"
-                      onClick={() => toggle(item)}
-                      className={`h-auto w-full justify-start rounded-2xl p-4 text-left ${active ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white" : "bg-zinc-100 hover:bg-zinc-200"}`}
-                    >
-                      <CheckCircle2 size={18} className="mr-3 shrink-0" />
-                      {item}
-                    </Button>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="rounded-3xl border-0 shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={Scale} title="Kontrola wyniku" subtitle="Nie oceniaj dnia. Oceniaj średnią tygodniową." />
-              <div className="space-y-3">
-                <div className="rounded-2xl bg-zinc-100 p-4">
-                  <div className="font-semibold">Codziennie rano</div>
-                  <p className="mt-1 text-zinc-600">Waga po toalecie, bez ubrań.</p>
-                </div>
-                <div className="rounded-2xl bg-zinc-100 p-4">
-                  <div className="font-semibold">Raz w tygodniu</div>
-                  <p className="mt-1 text-zinc-600">Średnia wagi z 7 dni, pas na wysokości pępka, zdjęcie przód i bok.</p>
-                </div>
-                <div className="rounded-2xl bg-zinc-100 p-4">
-                  <div className="font-semibold">Brak spadku przez 14 dni</div>
-                  <p className="mt-1 text-zinc-600">Odejmij 150 kcal dziennie albo dodaj 3000 kroków dziennie.</p>
-                </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="rounded-3xl border-0 shadow-md">
+          <CardContent className="p-6">
+            <SectionTitle icon={Scale} title="Kontrola wyniku" subtitle="Nie oceniaj dnia. Oceniaj średnią tygodniową." />
+            <div className="space-y-3">
+              <div className="rounded-2xl bg-zinc-100 p-4">
+                <div className="font-semibold">Codziennie rano</div>
+                <p className="mt-1 text-zinc-600">Waga po toalecie, bez ubrań.</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="rounded-2xl bg-zinc-100 p-4">
+                <div className="font-semibold">Raz w tygodniu</div>
+                <p className="mt-1 text-zinc-600">Średnia wagi z 7 dni, pas na wysokości pępka, zdjęcie przód i bok.</p>
+              </div>
+              <div className="rounded-2xl bg-zinc-100 p-4">
+                <div className="font-semibold">Brak spadku przez 14 dni</div>
+                <p className="mt-1 text-zinc-600">Odejmij 150 kcal dziennie albo dodaj 3000 kroków dziennie.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="rounded-3xl border-0 bg-zinc-950 text-white shadow-md">
-            <CardContent className="p-6">
-              <SectionTitle icon={HeartPulse} title="Ozempic i bezpieczeństwo" subtitle="Trzymaj redukcję ostro, ale rozsądnie." />
-              <div className="space-y-3 text-zinc-300">
-                <p className="leading-7">Nie zmieniaj dawki samodzielnie. Nie łącz głodówki, sauny, folii i mocnego cardio.</p>
-                <p className="leading-7">Pilny kontakt z lekarzem: silny ból brzucha, uporczywe wymioty, omdlenia, mało moczu, mocne odwodnienie, ból brzucha promieniujący do pleców.</p>
-                <p className="leading-7">Najostrzejsza wersja planu: 1800-2000 kcal, 160-190 g białka, hantle 4 razy w tygodniu, bieganie 2 razy w tygodniu, 12k-16k kroków, zero alkoholu.</p>
-              </div>
-            </CardContent>
-          </Card>
+        <Card className="rounded-3xl border-0 bg-zinc-950 text-white shadow-md">
+          <CardContent className="p-6">
+            <SectionTitle icon={HeartPulse} title="Ozempic i bezpieczeństwo" subtitle="Trzymaj redukcję ostro, ale rozsądnie." />
+            <div className="space-y-3 text-zinc-300">
+              <p className="leading-7">Nie zmieniaj dawki samodzielnie. Nie łącz głodówki, sauny, folii i mocnego cardio.</p>
+              <p className="leading-7">Pilny kontakt z lekarzem: silny ból brzucha, uporczywe wymioty, omdlenia, mało moczu, mocne odwodnienie, ból brzucha promieniujący do pleców.</p>
+              <p className="leading-7">Najostrzejsza wersja planu: 1800-2000 kcal, 160-190 g białka, hantle 4 razy w tygodniu, bieganie 2 razy w tygodniu, 12k-16k kroków, zero alkoholu.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </motion.div>
+  )
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-200 text-zinc-950 pb-28">
+      <div className="mx-auto max-w-6xl p-4 md:p-8">
+        <AnimatePresence mode="wait">
+          {activeTab === 'dziennik' && renderDziennik()}
+          {activeTab === 'plan' && renderPlan()}
+          {activeTab === 'wiedza' && renderZasady()}
+        </AnimatePresence>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 px-4 pointer-events-none">
+        <div className="pointer-events-auto flex gap-2 rounded-3xl bg-white/70 p-2 backdrop-blur-xl shadow-lg border border-white/50">
+          <NavButton active={activeTab === 'dziennik'} onClick={() => setActiveTab('dziennik')} icon={ListTodo} label="Dziennik" />
+          <NavButton active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={Dumbbell} label="Trening & Dieta" />
+          <NavButton active={activeTab === 'wiedza'} onClick={() => setActiveTab('wiedza')} icon={BookOpen} label="Baza Wiedzy" />
         </div>
       </div>
     </div>

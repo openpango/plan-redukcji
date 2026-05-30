@@ -220,18 +220,18 @@ function NavButton({ active, onClick, icon: Icon, label }: { active: boolean, on
   )
 }
 
-function DateStrip({ selectedDate, onSelect, monthData }: { selectedDate: string, onSelect: (d: string) => void, monthData: Record<string, number> }) {
+function DateStrip({ selectedDate, onSelect, monthData, startDate }: { selectedDate: string, onSelect: (d: string) => void, monthData: Record<string, number>, startDate: string }) {
   const dates = useMemo(() => {
     const list = []
-    const startDate = new Date("2026-05-30")
-    // Generujemy dni od 30.05.2026 aż do końca września (123 dni)
+    const start = new Date(startDate)
+    // Generujemy dni od wybranej daty startu aż do końca planu (np. 123 dni)
     for (let i = 0; i <= 123; i++) {
-      const d = new Date(startDate)
-      d.setDate(startDate.getDate() + i)
+      const d = new Date(start)
+      d.setDate(start.getDate() + i)
       list.push(d.toISOString().slice(0, 10))
     }
     return list
-  }, [])
+  }, [startDate])
 
   const daysOfWeek = ["Niedz", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"]
   const containerRef = useRef<HTMLDivElement>(null)
@@ -300,6 +300,19 @@ export default function PlanRedukcjiDoWrzesnia() {
   const [dailyLog, setDailyLog] = useState<DailyLog>(createDefaultDailyLog())
   const [monthData, setMonthData] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(true)
+
+  const [planStartDate, setPlanStartDate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.localStorage.getItem('planStartDate') || '2026-05-30'
+    }
+    return '2026-05-30'
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('planStartDate', planStartDate)
+    }
+  }, [planStartDate])
 
   // Fetch all recent data for the calendar strip
   useEffect(() => {
@@ -446,7 +459,7 @@ export default function PlanRedukcjiDoWrzesnia() {
       </motion.header>
 
       {/* Date Strip Calendar */}
-      <DateStrip selectedDate={selectedDate} onSelect={changeDate} monthData={monthData} />
+      <DateStrip selectedDate={selectedDate} onSelect={changeDate} monthData={monthData} startDate={planStartDate} />
 
       <Card className="rounded-3xl border-0 shadow-md mt-2">
         <CardContent className="p-6">
@@ -698,6 +711,21 @@ export default function PlanRedukcjiDoWrzesnia() {
       transition={{ duration: 0.3 }}
       className="space-y-6"
     >
+      <Card className="rounded-3xl border-0 shadow-md">
+        <CardContent className="p-6">
+          <SectionTitle icon={CalendarDays} title="Ustawienia planu" subtitle="Wybierz, od kiedy zaczynasz redukcję." />
+          <label className="block rounded-2xl bg-zinc-100 p-4">
+            <span className="text-sm font-medium text-zinc-600">Data startu</span>
+            <input
+              type="date"
+              value={planStartDate}
+              onChange={(event) => setPlanStartDate(event.target.value)}
+              className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
+            />
+          </label>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <Card className="rounded-3xl border-0 shadow-md">
           <CardContent className="p-6">

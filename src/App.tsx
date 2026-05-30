@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Activity, CalendarDays, Dumbbell, Footprints, HeartPulse, Scale, ShieldAlert, Utensils, Droplets, Moon, CheckCircle2, Clock, Pill, ListTodo, BookOpen } from "lucide-react"
+import { Activity, CalendarDays, Dumbbell, Footprints, HeartPulse, Scale, ShieldAlert, Utensils, Droplets, Moon, CheckCircle2, Clock, Pill, ListTodo, BookOpen, ChevronDown } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
@@ -123,6 +123,26 @@ function MetricInput({ label, value, type = "text", suffix, placeholder, onChang
           className="min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base font-semibold outline-none transition focus:border-zinc-900"
         />
         {suffix && <span className="text-sm font-semibold text-zinc-500">{suffix}</span>}
+      </div>
+    </label>
+  )
+}
+
+function CustomSelect({ label, value, options, onChange }: { label: string; value: string; options: {value: string, label: string}[]; onChange: (value: string) => void }) {
+  return (
+    <label className="block rounded-2xl bg-zinc-100 p-4">
+      <span className="text-sm font-medium text-zinc-600">{label}</span>
+      <div className="relative mt-2">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full appearance-none rounded-xl border border-zinc-300 bg-white px-3 py-2 pr-10 text-base font-semibold text-zinc-900 outline-none transition focus:border-zinc-900"
+        >
+          {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-500">
+          <ChevronDown size={18} />
+        </div>
       </div>
     </label>
   )
@@ -496,43 +516,39 @@ export default function PlanRedukcjiDoWrzesnia() {
           </div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-3">
-            <label className="block rounded-2xl bg-zinc-100 p-4">
-              <span className="text-sm font-medium text-zinc-600">Trening hantlami</span>
-              <select
-                value={dailyLog.workout}
-                onChange={(event) => updateDailyLog("workout", event.target.value)}
-                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
-              >
-                <option value="">Nie wybrano</option>
-                <option value="A">Trening A</option>
-                <option value="B">Trening B</option>
-                <option value="odpoczynek">Odpoczynek</option>
-              </select>
-            </label>
+            <CustomSelect
+              label="Trening hantlami"
+              value={dailyLog.workout}
+              onChange={(val) => updateDailyLog("workout", val)}
+              options={[
+                { value: "", label: "Nie wybrano" },
+                { value: "A", label: "Trening A" },
+                { value: "B", label: "Trening B" },
+                { value: "odpoczynek", label: "Odpoczynek" }
+              ]}
+            />
             <label className="block rounded-2xl bg-zinc-100 p-4">
               <span className="text-sm font-medium text-zinc-600">Bieg albo spacer</span>
               <input
                 value={dailyLog.run}
                 placeholder="np. bieg 6 km albo spacer 60 min"
                 onChange={(event) => updateDailyLog("run", event.target.value)}
-                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
+                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base font-semibold outline-none transition focus:border-zinc-900"
               />
             </label>
-            <label className="block rounded-2xl bg-zinc-100 p-4">
-              <span className="text-sm font-medium text-zinc-600">Samopoczucie</span>
-              <select
-                value={dailyLog.mood}
-                onChange={(event) => updateDailyLog("mood", event.target.value)}
-                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 font-semibold outline-none transition focus:border-zinc-900"
-              >
-                <option value="">Nie wybrano</option>
-                <option value="super">Super</option>
-                <option value="ok">OK</option>
-                <option value="slabo">Słabo</option>
-                <option value="nudnosci">Nudności</option>
-                <option value="brak energii">Brak energii</option>
-              </select>
-            </label>
+            <CustomSelect
+              label="Samopoczucie"
+              value={dailyLog.mood}
+              onChange={(val) => updateDailyLog("mood", val)}
+              options={[
+                { value: "", label: "Nie wybrano" },
+                { value: "super", label: "Super" },
+                { value: "ok", label: "OK" },
+                { value: "slabo", label: "Słabo" },
+                { value: "nudnosci", label: "Nudności" },
+                { value: "brak energii", label: "Brak energii" }
+              ]}
+            />
           </div>
 
           <div className="mt-4 grid gap-2 md:grid-cols-4">
